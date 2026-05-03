@@ -833,3 +833,556 @@ Então:
 ```
 
 
+
+
+Vamos converter **222.658** para **IEEE 754 float 32 bits**.
+
+## 1. Sinal
+
+Como o número é positivo:
+
+```text
+S = 0
+```
+
+---
+
+## 2. Parte inteira em binário
+
+```text
+222 / 2 = 111 resto 0
+111 / 2 = 55  resto 1
+55  / 2 = 27  resto 1
+27  / 2 = 13  resto 1
+13  / 2 = 6   resto 1
+6   / 2 = 3   resto 0
+3   / 2 = 1   resto 1
+1   / 2 = 0   resto 1
+```
+
+Lendo de baixo para cima:
+
+```text
+222 = 11011110₂
+```
+
+---
+
+## 3. Parte fracionária em binário
+
+Parte fracionária:
+
+```text
+0.658
+```
+
+Multiplicando por 2:
+
+```text
+0.658 × 2 = 1.316  → 1
+0.316 × 2 = 0.632  → 0
+0.632 × 2 = 1.264  → 1
+0.264 × 2 = 0.528  → 0
+0.528 × 2 = 1.056  → 1
+0.056 × 2 = 0.112  → 0
+0.112 × 2 = 0.224  → 0
+0.224 × 2 = 0.448  → 0
+0.448 × 2 = 0.896  → 0
+0.896 × 2 = 1.792  → 1
+...
+```
+
+Então:
+
+```text
+0.658 ≈ 0.101010000111001010110000...₂
+```
+
+Logo:
+
+```text
+222.658 ≈ 11011110.101010000111001010110000...₂
+```
+
+---
+
+## 4. Normalização
+
+Deslocamos a vírgula até ficar na forma:
+
+```text
+1.xxxxx × 2ⁿ
+```
+
+Temos:
+
+```text
+11011110.101010000111001010110000...
+```
+
+Movendo a vírgula 7 casas para a esquerda:
+
+```text
+1.101111010101000011100101011000... × 2⁷
+```
+
+Portanto:
+
+```text
+expoente real = 7
+```
+
+---
+
+## 5. Expoente com bias 127
+
+```text
+E = 7 + 127 = 134
+```
+
+Agora converter 134 para binário:
+
+```text
+134 = 10000110₂
+```
+
+Então:
+
+```text
+Expoente = 10000110
+```
+
+---
+
+## 6. Mantissa
+
+Da forma normalizada:
+
+```text
+1.101111010101000011100101011000...
+```
+
+O `1.` inicial é implícito. Guardamos apenas os bits depois da vírgula:
+
+```text
+101111010101000011100101011000...
+```
+
+A mantissa tem 23 bits:
+
+```text
+10111101010100001110010
+```
+
+Mas o próximo bit é `1`, então ocorre arredondamento:
+
+```text
+10111101010100001110010
++                      1
+-----------------------
+10111101010100001110011
+```
+
+Mantissa final:
+
+```text
+10111101010100001110011
+```
+
+---
+
+## 7. Representação IEEE 754 final
+
+```text
+Sinal     = 0
+Expoente  = 10000110
+Mantissa  = 10111101010100001110011
+```
+
+Juntando:
+
+```text
+0 10000110 10111101010100001110011
+```
+
+Em 32 bits:
+
+```text
+01000011010111101010100001110011
+```
+
+Agrupando em hexadecimal:
+
+```text
+0100 0011 0101 1110 1010 1000 0111 0011
+ 4    3    5    E    A    8    7    3
+```
+
+Resultado:
+
+```text
+0x435EA873
+```
+
+---
+
+# Forma algébrica
+
+O formato IEEE 754 simples é:
+
+[
+x = (-1)^S \cdot (1 + M) \cdot 2^{E - 127}
+]
+
+Para o nosso caso:
+
+```text
+S = 0
+E = 134
+E - 127 = 7
+```
+
+A mantissa é:
+
+```text
+10111101010100001110011
+```
+
+Logo:
+
+[
+M =
+1\cdot2^{-1}
++0\cdot2^{-2}
++1\cdot2^{-3}
++1\cdot2^{-4}
++1\cdot2^{-5}
++1\cdot2^{-6}
++0\cdot2^{-7}
++\cdots
+]
+
+Então o número armazenado é:
+
+[
+x = (-1)^0 \cdot 1.10111101010100001110011_2 \cdot 2^7
+]
+
+Ou seja:
+
+```text
+1.10111101010100001110011₂ × 2⁷
+```
+
+Desnormalizando:
+
+```text
+11011110.1010100001110011₂
+```
+
+Esse valor não volta exatamente para `222.658`, porque `0.658` não tem representação binária finita.
+
+O valor real armazenado no float é aproximadamente:
+
+```text
+222.6580047607421875
+```
+
+Então:
+
+```text
+222.658 ≈ 0x435EA873
+```
+
+Muda pouca coisa na lógica — **muda o tamanho dos campos e os tipos em C**. Em vez de `float` (32 bits), você passa a usar **`double` (64 bits)**.
+
+---
+
+# 📐 IEEE 754 — comparação direta
+
+| Campo    | float (32 bits)   | double (64 bits)    |
+| -------- | ----------------- | ------------------- |
+| Sinal    | 1 bit             | 1 bit               |
+| Expoente | 8 bits (bias 127) | 11 bits (bias 1023) |
+| Mantissa | 23 bits           | 52 bits             |
+
+---
+
+# 🔧 O que muda no código
+
+## 1. Tipo do número
+
+```c
+float  → double
+```
+
+---
+
+## 2. Tipo para armazenar os bits
+
+```c
+uint32_t → uint64_t
+```
+
+---
+
+## 3. Máscaras e shifts
+
+### float (32 bits)
+
+```c
+sign     = (bits >> 31) & 0x1;
+exponent = (bits >> 23) & 0xFF;
+mantissa = bits & 0x7FFFFF;
+```
+
+### double (64 bits)
+
+```c
+sign     = (bits >> 63) & 0x1;
+exponent = (bits >> 52) & 0x7FF;
+mantissa = bits & 0xFFFFFFFFFFFFF;
+```
+
+---
+
+# ✅ Código completo para double
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+void print_bits64(uint64_t x) {
+    for (int i = 63; i >= 0; i--) {
+        printf("%d", (int)((x >> i) & 1));
+
+        if (i == 63 || i == 52) printf(" "); // separa S | E | M
+    }
+    printf("\n");
+}
+
+int main() {
+    double y = 222.658;
+
+    uint64_t bits;
+    memcpy(&bits, &y, sizeof(bits));
+
+    uint64_t sign     = (bits >> 63) & 0x1;
+    uint64_t exponent = (bits >> 52) & 0x7FF;
+    uint64_t mantissa = bits & 0xFFFFFFFFFFFFF;
+
+    printf("Valor: %.15f\n\n", y);
+
+    printf("Bits:\n");
+    print_bits64(bits);
+
+    printf("\nCampos:\n");
+    printf("Sinal     = %llu\n", sign);
+    printf("Expoente  = %llu\n", exponent);
+    printf("Mantissa  = 0x%013llX\n", mantissa);
+
+    printf("\nExpoente real = %lld\n", (long long)exponent - 1023);
+
+    return 0;
+}
+```
+
+---
+
+# 🧠 Diferença conceitual importante
+
+## Bias muda
+
+* float:
+  [
+  E_{real} = E - 127
+  ]
+
+* double:
+  [
+  E_{real} = E - 1023
+  ]
+
+---
+
+## Precisão muda MUITO
+
+* float → ~7 casas decimais
+* double → ~15–16 casas
+
+👉 Isso significa que:
+
+```text
+222.658 (float)  ≈ 222.658004760742
+222.658 (double) ≈ 222.658000000000015
+```
+
+---
+
+# ⚠️ Observação importante
+
+O problema **continua existindo**:
+
+👉 `0.658` **não é representável exatamente em binário**
+
+Mas no `double`, o erro é MUITO menor.
+
+---
+
+# 💡 Insight avançado
+
+Se você fizer o mesmo processo manual que fez antes:
+
+* normalização → igual
+* mas agora:
+
+  * mais bits de mantissa → mais precisão
+  * expoente maior → maior alcance
+
+---
+
+# Se quiser ir mais fundo
+
+Posso te mostrar:
+
+* como imprimir **mantissa em forma de soma de potências de 2**
+* reconstruir o double manualmente
+* ou comparar erro float vs double numericamente
+
+Só falar 👍
+
+
+Excelente — isso aqui é **clássico de portabilidade em C**.
+
+O compilador está correto:
+no seu sistema (Linux x86_64), temos:
+
+```text
+uint64_t → unsigned long
+```
+
+e **não** `unsigned long long`.
+
+---
+
+# 🎯 Problema
+
+Você usou:
+
+```c
+printf("%llu", sign);
+```
+
+Mas `%llu` espera:
+
+```c
+unsigned long long
+```
+
+👉 mismatch → warning
+
+---
+
+# ✅ SOLUÇÃO CORRETA (PORTÁVEL)
+
+Use `<inttypes.h>`:
+
+```c
+#include <inttypes.h>
+```
+
+E use os macros:
+
+```c
+printf("Sinal     = %" PRIu64 "\n", sign);
+printf("Expoente  = %" PRIu64 "\n", exponent);
+printf("Mantissa  = 0x%013" PRIX64 "\n", mantissa);
+```
+
+---
+
+# ✔️ Código corrigido
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <inttypes.h>
+
+int main() {
+    double y = 222.658;
+
+    uint64_t bits;
+    memcpy(&bits, &y, sizeof(bits));
+
+    uint64_t sign     = (bits >> 63) & 0x1;
+    uint64_t exponent = (bits >> 52) & 0x7FF;
+    uint64_t mantissa = bits & 0xFFFFFFFFFFFFF;
+
+    printf("Sinal     = %" PRIu64 "\n", sign);
+    printf("Expoente  = %" PRIu64 "\n", exponent);
+    printf("Mantissa  = 0x%013" PRIX64 "\n", mantissa);
+
+    printf("Expoente real = %lld\n", (long long)exponent - 1023);
+
+    return 0;
+}
+```
+
+---
+
+# 🧠 Por que isso acontece?
+
+Depende da arquitetura:
+
+| Tipo                 | Linux 64-bit |
+| -------------------- | ------------ |
+| `unsigned long`      | 64 bits      |
+| `unsigned long long` | 64 bits      |
+
+👉 ambos têm 64 bits, **mas são tipos diferentes**
+
+---
+
+# ⚠️ Solução alternativa (menos robusta)
+
+Você poderia usar:
+
+```c
+printf("%lu\n", sign);
+```
+
+👉 funciona no seu sistema
+❌ mas quebra em outros (ex: Windows)
+
+---
+
+# 💡 Regra de ouro
+
+Sempre que usar:
+
+* `uint32_t` → use `PRIu32`
+* `uint64_t` → use `PRIu64`
+
+👉 isso é o padrão ISO C correto
+
+---
+
+# 🔥 Insight importante (nível avançado)
+
+Esse problema aparece muito quando você:
+
+* trabalha com bits (como você está fazendo 👍)
+* escreve código portátil
+* usa arquiteturas diferentes (ARM, Windows, embedded)
+
+---
+
+Se quiser, posso te mostrar:
+
+* como imprimir **bit a bit com máscaras portáveis**
+* ou fazer um dump completo estilo `hexdump` do float/double
+
+Só falar 👍
+
