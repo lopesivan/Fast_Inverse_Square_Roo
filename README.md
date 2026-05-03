@@ -1386,3 +1386,281 @@ Se quiser, posso te mostrar:
 
 Só falar 👍
 
+
+
+Sim. O **(\sigma)** aparece porque fazemos uma aproximação linear:
+
+[
+\log_2(1+M) \approx M + \sigma
+]
+
+No resumo que você enviou, isso aparece justamente como o ajuste que leva ao número mágico do Fast Inverse Square Root.
+
+## 1. De onde vem (\sigma)
+
+Para um `float` normalizado positivo:
+
+[
+x = 2^{E-B}(1+M)
+]
+
+com:
+
+[
+B = 127
+]
+
+Aplicando logaritmo:
+
+[
+\log_2(x)=E-B+\log_2(1+M)
+]
+
+O problema é que (\log_2(1+M)) não é exatamente igual a (M). Então usamos:
+
+[
+\log_2(1+M) \approx M+\sigma
+]
+
+Logo:
+
+[
+\log_2(x) \approx E-B+M+\sigma
+]
+
+---
+
+## 2. Como determinar (\sigma) analiticamente
+
+Queremos escolher (\sigma) para aproximar bem:
+
+[
+\log_2(1+M) \approx M+\sigma
+]
+
+Defina o erro:
+
+[
+\varepsilon(M)=\log_2(1+M)-M-\sigma
+]
+
+Um método analítico simples é escolher (\sigma) para que o **erro médio** no intervalo (0 \le M < 1) seja zero:
+
+[
+\int_0^1 \left[\log_2(1+M)-M-\sigma\right],dM=0
+]
+
+Então:
+
+[
+\sigma=\int_0^1 \log_2(1+M),dM-\int_0^1 M,dM
+]
+
+Sabemos que:
+
+[
+\int_0^1 M,dM=\frac{1}{2}
+]
+
+Agora:
+
+[
+\int_0^1 \log_2(1+M),dM
+=======================
+
+\frac{1}{\ln 2}\int_0^1 \ln(1+M),dM
+]
+
+Fazendo (u=1+M):
+
+[
+\int_0^1 \ln(1+M),dM
+====================
+
+\int_1^2 \ln(u),du
+]
+
+[
+\int \ln(u),du = u\ln(u)-u
+]
+
+Então:
+
+[
+\int_1^2 \ln(u),du
+==================
+
+[ u\ln(u)-u ]_1^2
+]
+
+[
+= (2\ln2-2)-(1\ln1-1)
+]
+
+[
+=2\ln2-2+1
+]
+
+[
+=2\ln2-1
+]
+
+Logo:
+
+[
+\int_0^1 \log_2(1+M),dM
+=======================
+
+\frac{2\ln2-1}{\ln2}
+]
+
+[
+=2-\frac{1}{\ln2}
+]
+
+Portanto:
+
+[
+\sigma
+======
+
+2-\frac{1}{\ln2}-\frac{1}{2}
+]
+
+[
+\boxed{\sigma=\frac{3}{2}-\frac{1}{\ln2}}
+]
+
+Numericamente:
+
+[
+\sigma \approx 0.057304959
+]
+
+---
+
+## 3. Por que ele é necessário?
+
+Sem (\sigma), você estaria dizendo:
+
+[
+\log_2(1+M)\approx M
+]
+
+Mas isso erra bastante.
+
+Exemplo:
+
+Para (M=0):
+
+[
+\log_2(1+0)=0
+]
+
+Aproximação sem (\sigma):
+
+[
+M=0
+]
+
+Erro: zero.
+
+Mas para (M=1):
+
+[
+\log_2(2)=1
+]
+
+Aproximação sem (\sigma):
+
+[
+M=1
+]
+
+Erro: zero também.
+
+O problema está no meio.
+
+Para (M=0.5):
+
+[
+\log_2(1.5)\approx 0.58496
+]
+
+Sem (\sigma):
+
+[
+M=0.5
+]
+
+Erro:
+
+[
+0.58496-0.5=0.08496
+]
+
+Com (\sigma \approx 0.05730):
+
+[
+M+\sigma = 0.5+0.05730=0.55730
+]
+
+Erro:
+
+[
+0.58496-0.55730=0.02766
+]
+
+Ou seja, (\sigma) reduz o erro médio da aproximação.
+
+---
+
+## 4. Ligação com o número mágico
+
+Como o inteiro dos bits é aproximadamente:
+
+[
+L = 2^{23}(E+M)
+]
+
+chegamos à forma:
+
+[
+L_y \approx \frac{3}{2}2^{23}(B-\sigma)-\frac{1}{2}L_x
+]
+
+Então a constante mágica é:
+
+[
+K=\frac{3}{2}2^{23}(127-\sigma)
+]
+
+No código:
+
+```c
+i = K - (i >> 1);
+```
+
+O famoso `0x5f3759df` é uma escolha de (K) ajustada para dar erro pequeno antes da etapa de Newton.
+
+---
+
+## 5. Resumo
+
+[
+\boxed{\sigma \text{ corrige a aproximação } \log_2(1+M)\approx M}
+]
+
+Sem (\sigma), a aproximação fica enviesada.
+
+Com (\sigma), obtemos uma constante (K) melhor:
+
+```c
+i = 0x5f3759df - (i >> 1);
+```
+
+Depois, Newton corrige o restante:
+
+```c
+y = y * (1.5f - xhalf * y * y);
+```
