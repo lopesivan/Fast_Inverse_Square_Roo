@@ -1,3 +1,4 @@
+/* gcc compare.c -o compare -O3 -Wall -Wextra -lm */
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
